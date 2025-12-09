@@ -20,23 +20,28 @@ fn read_input(filename string) ![][]u8 {
 	return result
 }
 
-fn get_jolt(bank []u8) !u8 {
-	mut bank_wo_last := bank.clone()
-	bank_wo_last.pop()
-	idx1 := arrays.idx_max(bank_wo_last)!
-	lower := arrays.max(bank[idx1 + 1..])!
-	return bank[idx1] * 10 + lower
+fn get_jolt(bank []u8, n_bats u8) !u64 {
+	mut res := u64(0)
+	mut hi_idx := -1
+	for digit in 0 .. n_bats {
+		keep_digits := n_bats - digit - 1
+		hi_idx = arrays.idx_max(bank[hi_idx + 1..bank.len - keep_digits])! + hi_idx + 1
+		res = res * 10 + bank[hi_idx]
+	}
+	return res
 }
 
 fn main() {
 	// input := read_input('example_input.txt') or { panic('Failed to read input: ${err}') }
 	input := read_input('input.txt') or { panic('Failed to read input: ${err}') }
 
-	mut total_jolt := u64(0)
+	mut total_jolt_2bats := u64(0)
+	mut total_jolt_12bats := u64(0)
 	for bank in input {
-		total_jolt += get_jolt(bank) or { panic('${err}') }
+		total_jolt_2bats += get_jolt(bank, 2) or { panic('${err}') }
+		total_jolt_12bats += get_jolt(bank, 12) or { panic('${err}') }
 	}
 
-	println('Part 1: ${total_jolt}')
-	println('Part 2: ')
+	println('Part 1: ${total_jolt_2bats}')
+	println('Part 2: ${total_jolt_12bats}')
 }
