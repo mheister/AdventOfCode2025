@@ -17,7 +17,8 @@ fn read_input(filename string) ![]i64 {
 }
 
 fn main() {
-	input := read_input('input.txt') or { panic('Failed to read input: ${err}') }
+	input_file := os.args[1] or { 'example_input.txt' }
+	input := read_input(input_file) or { panic('Failed to read input: ${err}') }
 
 	println('Part 1: ')
 	println('Part 2: ')
