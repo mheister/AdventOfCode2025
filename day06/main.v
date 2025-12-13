@@ -55,6 +55,64 @@ fn read_input(filename string) ![]CephaProblem {
 	return result
 }
 
+// part 2 :)
+fn read_input_correctly(filename string) ![]CephaProblem {
+	data := os.read_file(filename) or { return error('Failed to read file: ${err}') }
+
+	lines[string] := data.split_into_lines()
+
+	ops := fallible_map(lines.last().split_by_space(), fn (opstr string) !Operation {
+		return match opstr {
+			'+' { Operation.add }
+			'*' { Operation.mul }
+			else { error('invalid operation ${opstr}') }
+		}
+	})!
+
+	max_line_len := arrays.fold[string, int](lines[0..lines.len - 1], 0, fn (acc int, elem string) int {
+		if elem.len > acc {
+			return elem.len
+		}
+		return acc
+	})
+
+	mut lines_transposed := []string{cap: max_line_len}
+	mut new_line := ''
+	for idx_rev in 1 .. max_line_len  + 1 {
+		idx := max_line_len - idx_rev
+		mut new_num := ''
+		for line in lines[0..lines.len - 1] {
+			if idx < line.len {
+				new_num += line[idx].ascii_str()
+			} else {
+				new_num += ' '
+			}
+		}
+		if new_num.trim_space().len == 0 {
+			lines_transposed << new_line
+			new_line = ''
+			continue
+		}
+		if idx == 0 {
+			lines_transposed << new_line + new_num
+			continue
+		}
+		new_line += new_num + ' '
+	}
+
+	mut result := []CephaProblem{cap: ops.len}
+	for idx in 0 .. ops.len {
+		numbers := fallible_map[string, u64](lines_transposed[idx].str().split_by_space(),
+			|x| x.parse_uint(10, 64)) or { return error('Failed to read line: ${err}') }
+		result << CephaProblem{
+			op:      ops.reverse()[idx]
+			numbers: numbers
+		}
+	}
+
+	return result
+}
+
 fn solve_cepha_problem(prob &CephaProblem) u64 {
 	foldop := match prob.op {
 		.add {
@@ -76,11 +134,18 @@ fn solve_cepha_problem(prob &CephaProblem) u64 {
 }
 
 fn main() {
-	input := read_input('input.txt') or { panic('Failed to read input: ${err}') }
+	input_file := os.args[1] or { 'example_input.txt' }
 
-	println('${input}')
-	solution_part1 := arrays.reduce(input.map(|p| solve_cepha_problem(p)), |l, r| l + r)!
+	input_part1 := read_input(input_file) or { panic('Failed to read input for part 1: ${err}') }
+
+	solution_part1 := arrays.reduce(input_part1.map(|p| solve_cepha_problem(p)), |l, r| l + r)!
+
+	input_part2 := read_input_correctly(input_file) or {
+		panic('Failed to read input for part 2: ${err}')
+	}
+
+	solution_part2 := arrays.reduce(input_part2.map(|p| solve_cepha_problem(p)), |l, r| l + r)!
 
 	println('Part 1: solution is ${solution_part1}')
-	println('Part 2: ')
+	println('Part 2: solution is ${solution_part2}')
 }
