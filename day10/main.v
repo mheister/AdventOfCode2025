@@ -6,8 +6,15 @@ struct Device {
 	ident   string
 	outputs []string
 mut:
-	visited      bool
-	links_to_out int
+	visited bool
+	// total links to 'out' from this device
+	links_to_out u64
+	// links to 'out' via 'dac' but not 'fft'
+	links_to_out_via_dac u64
+	// links to 'out' via 'fft' but not 'dac'
+	links_to_out_via_fft u64
+	// links to 'out' via both 'dac' and 'fft'
+	links_to_out_via_dac_and_fft u64
 }
 
 type DeviceMap = map[string]Device
@@ -40,7 +47,7 @@ fn init_device_map(links map[string][]string) DeviceMap {
 	return device_map
 }
 
-fn part1_visit(device_map DeviceMap, ident string) {
+fn visit(device_map DeviceMap, ident string) {
 	mut device := &device_map[ident]
 	if device.visited {
 		return
@@ -48,30 +55,59 @@ fn part1_visit(device_map DeviceMap, ident string) {
 
 	device.visited = true
 
-	mut new_links := 0
+	mut new_links := u64(0)
+	mut new_links_via_dac := u64(0)
+	mut new_links_via_fft := u64(0)
+	mut new_links_via_dac_and_fft := u64(0)
+
 	for output in device.outputs {
 		if output == 'out' {
 			new_links += 1
 		} else {
-			part1_visit(device_map, output)
-			new_links += device_map[output].links_to_out
+			visit(device_map, output)
+			odev := &device_map[output]
+			new_links += odev.links_to_out
+			new_links_via_dac += odev.links_to_out_via_dac
+			new_links_via_fft += odev.links_to_out_via_fft
+			new_links_via_dac_and_fft += odev.links_to_out_via_dac_and_fft
 		}
 	}
 	device.links_to_out = new_links
+	match ident {
+		'dac' {
+			device.links_to_out_via_dac_and_fft = new_links_via_dac_and_fft + new_links_via_fft
+			assert device.links_to_out_via_dac_and_fft <= new_links
+			device.links_to_out_via_dac = new_links - device.links_to_out_via_dac_and_fft
+		}
+		'fft' {
+			device.links_to_out_via_dac_and_fft = new_links_via_dac_and_fft + new_links_via_dac
+			assert device.links_to_out_via_dac_and_fft <= new_links
+			device.links_to_out_via_fft = new_links - device.links_to_out_via_dac_and_fft
+		}
+		else {
+			device.links_to_out_via_dac = new_links_via_dac
+			device.links_to_out_via_fft = new_links_via_fft
+			device.links_to_out_via_dac_and_fft = new_links_via_dac_and_fft
+		}
+	}
 }
 
 fn main() {
 	input_file := os.args[1] or { 'example_input.txt' }
 	links := read_input(input_file) or { panic('Failed to read input: ${err}') }
 
-	device_map := init_device_map(links)
+	device_map_p1 := init_device_map(links)
 
-	part1_visit(device_map, 'you')
+	visit(device_map_p1, 'you')
 
-	n_links := device_map['you'].links_to_out
-
-	println('${device_map}')
+	n_links := device_map_p1['you'].links_to_out
 
 	println('Part 1: ${n_links}')
-	println('Part 2: ')
+
+	device_map_p2 := init_device_map(links)
+	visit(device_map_p2, 'svr')
+	println('${device_map_p2}')
+	n_links_via_dac_and_fft := device_map_p2['svr'].links_to_out_via_dac_and_fft
+
+	println('Part 2: ${n_links_via_dac_and_fft}')
 }
