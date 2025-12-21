@@ -4,8 +4,9 @@ import arrays
 import os
 
 struct Machine {
-	indicators u16
-	buttons    []u16
+	indicators  u16
+	buttons     []u16
+	joltage_req []u16
 }
 
 pub fn (m Machine) str() string {
@@ -53,6 +54,10 @@ fn parse_button(button_str string) u16 {
 	return buttons
 }
 
+fn parse_joltreq(joltreq_str string) []u16 {
+	return joltreq_str#[1..-1].split(',').map(u16(it.int()))
+}
+
 fn read_input(filename string) ![]Machine {
 	data := os.read_file(filename) or { return error('Failed to read file: ${err}') }
 
@@ -61,10 +66,13 @@ fn read_input(filename string) ![]Machine {
 
 	for l in lines {
 		ind_str, rest := l.split_once(' ') or { return error('Invalid line format') }
-		button_strs := rest.split(' ')#[..-1] // ignore joltage for now
+		buttons_str, joltage_req_str := rest.rsplit_once(' ') or {
+			return error('Invalid line format')
+		}
 		result << Machine{
-			indicators: parse_indicators(ind_str)
-			buttons:    button_strs.map(parse_button(it))
+			indicators:  parse_indicators(ind_str)
+			buttons:     buttons_str.split(' ').map(parse_button(it))
+			joltage_req: parse_joltreq(joltage_req_str)
 		}
 	}
 
@@ -101,6 +109,34 @@ fn initialize_machine(m Machine) int {
 	return states[m.indicators] or { int(1e9) }
 }
 
+fn count_set_bits(n u16) int {
+	mut count := 0
+	mut num := n
+	for num > 0 {
+		count += int(num & 1)
+		num >>= 1
+	}
+	return count
+}
+
+fn initialize_joltage(m Machine) int {
+	n_buttons := m.buttons.len
+	n_joltage := m.joltage_req.len
+	mut a := [][]int{cap: n_joltage}
+	for jolt_idx in 0 .. n_joltage {
+		mut row := []int{cap: n_buttons}
+		for btn in m.buttons {
+			row << if btn & (1 << jolt_idx) != 0 { int(1) } else { 0 }
+		}
+		a << row
+	}
+	mut b := m.joltage_req.map(int(it))
+	println('${m}')
+	println('A=${a} b=${b}')
+	res := ilp_solve(a, b)
+	return arrays.sum(res) or { -1 }
+}
+
 fn main() {
 	input_file := os.args[1] or { 'example_input.txt' }
 	input := read_input(input_file) or { panic('Failed to read input: ${err}') }
@@ -111,5 +147,9 @@ fn main() {
 	num_presses_part1 := arrays.sum(input.map(initialize_machine(it))) or { panic('${err}') }
 
 	println('Part 1: ${num_presses_part1}')
-	println('Part 2: ')
+
+	// Part 2
+	num_presses_part2 := arrays.sum(input.map(initialize_joltage(it))) or { panic('${err}') }
+
+	println('Part 2: ${num_presses_part2}')
 }
