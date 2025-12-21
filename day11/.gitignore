@@ -1,6 +1,6 @@
 # Binaries for programs and plugins
 main
-day10
+day11
 *.exe
 *.exe~
 *.so
